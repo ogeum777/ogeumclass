@@ -27,6 +27,9 @@ const INITIAL_DB: Database = {
   schedules: [],
 };
 
+const ADMIN_ID = import.meta.env.VITE_ADMIN_ID as string | undefined;
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD as string | undefined;
+
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewMode>('student');
   const [db, setDb] = useState<Database>(INITIAL_DB);
@@ -36,6 +39,10 @@ export default function App() {
   const [teacherUnlocked, setTeacherUnlocked] = useState(false);
   const [teacherPasswordInput, setTeacherPasswordInput] = useState('');
   const [teacherAccessError, setTeacherAccessError] = useState<string | null>(null);
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [adminIdInput, setAdminIdInput] = useState('');
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [adminAccessError, setAdminAccessError] = useState<string | null>(null);
 
   const fetchDb = async () => {
     try {
@@ -94,6 +101,9 @@ export default function App() {
     setCurrentView(view);
     setTeacherAccessError(null);
     setTeacherPasswordInput('');
+    setAdminAccessError(null);
+    setAdminIdInput('');
+    setAdminPasswordInput('');
   };
 
   const handleTeacherPasswordSubmit = (event: FormEvent) => {
@@ -123,6 +133,70 @@ export default function App() {
       };
     }
   };
+
+  const handleAdminLoginSubmit = (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!ADMIN_ID || !ADMIN_PASSWORD) {
+      setAdminAccessError('관리자 아이디와 비밀번호 환경 변수를 먼저 설정해 주세요.');
+      return;
+    }
+
+    if (adminIdInput === ADMIN_ID && adminPasswordInput === ADMIN_PASSWORD) {
+      setAdminUnlocked(true);
+      setAdminAccessError(null);
+      setAdminIdInput('');
+      setAdminPasswordInput('');
+      return;
+    }
+
+    setAdminAccessError('아이디 또는 비밀번호가 올바르지 않습니다.');
+  };
+
+  const renderAdminLogin = () => (
+    <div className="max-w-md mx-auto bg-white border border-slate-200 rounded-xl shadow-sm p-6 space-y-5">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center border border-slate-200">
+          <LockKeyhole className="h-5 w-5" />
+        </div>
+        <div>
+          <h2 className="text-lg font-extrabold text-slate-900">관리자 시스템</h2>
+          <p className="text-xs text-slate-500 mt-0.5">관리자 아이디와 비밀번호를 입력하세요.</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleAdminLoginSubmit} className="space-y-3">
+        <input
+          type="text"
+          value={adminIdInput}
+          onChange={(event) => setAdminIdInput(event.target.value)}
+          className="w-full h-11 rounded-lg border border-slate-200 px-3 text-sm outline-hidden focus:border-slate-700 focus:ring-2 focus:ring-slate-500/10"
+          placeholder="관리자 아이디"
+          autoComplete="username"
+          autoFocus
+        />
+        <input
+          type="password"
+          value={adminPasswordInput}
+          onChange={(event) => setAdminPasswordInput(event.target.value)}
+          className="w-full h-11 rounded-lg border border-slate-200 px-3 text-sm outline-hidden focus:border-slate-700 focus:ring-2 focus:ring-slate-500/10"
+          placeholder="관리자 비밀번호"
+          autoComplete="current-password"
+        />
+        {adminAccessError && (
+          <div className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+            {adminAccessError}
+          </div>
+        )}
+        <button
+          type="submit"
+          className="w-full h-11 rounded-lg bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-colors"
+        >
+          로그인
+        </button>
+      </form>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50/50 flex flex-col font-sans select-none" id="app-root-container">
@@ -204,17 +278,19 @@ export default function App() {
               )
             )}
             {currentView === 'admin' && (
-              <AdminView
-                db={db}
-                onAddClass={handleAddClass}
-                onDeleteClass={handleDeleteClass}
-                onAddSubject={handleAddSubject}
-                onDeleteSubject={handleDeleteSubject}
-                onAddPeriod={handleAddPeriod}
-                onDeletePeriod={handleDeletePeriod}
-                teacherPassword={teacherPassword}
-                onUpdateTeacherPassword={handleUpdateTeacherPassword}
-              />
+              adminUnlocked ? (
+                <AdminView
+                  db={db}
+                  onAddClass={handleAddClass}
+                  onDeleteClass={handleDeleteClass}
+                  onAddSubject={handleAddSubject}
+                  onDeleteSubject={handleDeleteSubject}
+                  onAddPeriod={handleAddPeriod}
+                  onDeletePeriod={handleDeletePeriod}
+                  teacherPassword={teacherPassword}
+                  onUpdateTeacherPassword={handleUpdateTeacherPassword}
+                />
+              ) : renderAdminLogin()
             )}
           </div>
         )}
