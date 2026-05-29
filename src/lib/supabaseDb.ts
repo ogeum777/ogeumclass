@@ -55,16 +55,17 @@ async function supabaseRequest<T>(path: string, init: RequestInit = {}): Promise
     },
   });
 
+  const text = await res.text();
+
   if (!res.ok) {
-    const text = await res.text();
     throw new Error(text || `Supabase request failed: ${res.status}`);
   }
 
-  if (res.status === 204) {
+  if (!text) {
     return undefined as T;
   }
 
-  return res.json() as Promise<T>;
+  return JSON.parse(text) as T;
 }
 
 async function fetchRows(table: string, query: string) {
@@ -127,9 +128,9 @@ export async function fetchDatabase(): Promise<Database> {
 }
 
 export async function addClass(className: string) {
-  await supabaseRequest('classes', {
+  await supabaseRequest('classes?on_conflict=name', {
     method: 'POST',
-    headers: { Prefer: 'resolution=ignore-duplicates' },
+    headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
     body: JSON.stringify([{ name: className }]),
   });
   return fetchDatabase();
@@ -143,9 +144,9 @@ export async function deleteClass(className: string) {
 }
 
 export async function addSubject(subjectName: string) {
-  await supabaseRequest('subjects', {
+  await supabaseRequest('subjects?on_conflict=name', {
     method: 'POST',
-    headers: { Prefer: 'resolution=ignore-duplicates' },
+    headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
     body: JSON.stringify([{ name: subjectName }]),
   });
   return fetchDatabase();
@@ -160,9 +161,9 @@ export async function deleteSubject(subjectName: string) {
 
 export async function addPeriod(period: string) {
   const sortOrder = parseInt(period.replace(/\D/g, ''), 10) || 0;
-  await supabaseRequest('periods', {
+  await supabaseRequest('periods?on_conflict=name', {
     method: 'POST',
-    headers: { Prefer: 'resolution=ignore-duplicates' },
+    headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
     body: JSON.stringify([{ name: period, sort_order: sortOrder }]),
   });
   return fetchDatabase();
