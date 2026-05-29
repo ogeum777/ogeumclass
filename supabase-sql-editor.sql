@@ -41,6 +41,12 @@ create table if not exists public.schedules (
   constraint schedules_one_per_class_period unique (school_date, class_id, period_id)
 );
 
+create table if not exists public.app_settings (
+  setting_key text primary key,
+  setting_value text not null default '',
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists schedules_school_date_idx on public.schedules(school_date);
 create index if not exists schedules_class_id_idx on public.schedules(class_id);
 create index if not exists schedules_subject_id_idx on public.schedules(subject_id);
@@ -67,6 +73,7 @@ alter table public.subjects enable row level security;
 alter table public.periods enable row level security;
 alter table public.school_dates enable row level security;
 alter table public.schedules enable row level security;
+alter table public.app_settings enable row level security;
 
 drop policy if exists "Public read classes" on public.classes;
 create policy "Public read classes"
@@ -132,6 +139,23 @@ on public.schedules for all
 to anon, authenticated
 using (true)
 with check (true);
+
+drop policy if exists "Public read app_settings" on public.app_settings;
+create policy "Public read app_settings"
+on public.app_settings for select
+to anon, authenticated
+using (true);
+
+drop policy if exists "Public write app_settings" on public.app_settings;
+create policy "Public write app_settings"
+on public.app_settings for all
+to anon, authenticated
+using (true)
+with check (true);
+
+insert into public.app_settings (setting_key, setting_value)
+values ('teacher_password', '')
+on conflict (setting_key) do nothing;
 
 insert into public.periods (name, sort_order)
 values

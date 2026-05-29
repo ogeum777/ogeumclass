@@ -127,6 +127,28 @@ export async function fetchDatabase(): Promise<Database> {
   };
 }
 
+export async function fetchTeacherPassword(): Promise<string> {
+  try {
+    const rows = await fetchRows('app_settings', 'select=setting_value&setting_key=eq.teacher_password&limit=1');
+    return rows[0]?.setting_value || '';
+  } catch (error) {
+    console.warn('Teacher password setting is not available yet.', error);
+    return '';
+  }
+}
+
+export async function updateTeacherPassword(password: string): Promise<string> {
+  await supabaseRequest('app_settings?on_conflict=setting_key', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify([{
+      setting_key: 'teacher_password',
+      setting_value: password.trim(),
+    }]),
+  });
+  return fetchTeacherPassword();
+}
+
 export async function addClass(className: string) {
   await supabaseRequest('classes?on_conflict=name', {
     method: 'POST',

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { AlertTriangle, Copyright, RefreshCw } from 'lucide-react';
+import { FormEvent, useEffect, useState } from 'react';
+import { AlertTriangle, Copyright, LockKeyhole, RefreshCw } from 'lucide-react';
 import Header from './components/Header';
 import StudentView from './components/StudentView';
 import TeacherView from './components/TeacherView';
@@ -15,6 +15,8 @@ import {
   deleteSchedule,
   deleteSubject,
   fetchDatabase,
+  fetchTeacherPassword,
+  updateTeacherPassword,
 } from './lib/supabaseDb';
 
 const INITIAL_DB: Database = {
@@ -30,12 +32,21 @@ export default function App() {
   const [db, setDb] = useState<Database>(INITIAL_DB);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [teacherPassword, setTeacherPassword] = useState('');
+  const [teacherUnlocked, setTeacherUnlocked] = useState(false);
+  const [teacherPasswordInput, setTeacherPasswordInput] = useState('');
+  const [teacherAccessError, setTeacherAccessError] = useState<string | null>(null);
 
   const fetchDb = async () => {
     try {
       setIsLoading(true);
       setErrorMsg(null);
-      setDb(await fetchDatabase());
+      const [nextDb, savedTeacherPassword] = await Promise.all([
+        fetchDatabase(),
+        fetchTeacherPassword(),
+      ]);
+      setDb(nextDb);
+      setTeacherPassword(savedTeacherPassword);
     } catch (error) {
       console.error(error);
       setErrorMsg('서버와 동기화하지 못했습니다. Supabase 연결 상태와 환경 변수를 확인해 주세요.');
@@ -79,6 +90,40 @@ export default function App() {
   }) => handleDataAction(() => addSchedule(schedule));
   const handleDeleteSchedule = (id: string) => handleDataAction(() => deleteSchedule(id));
 
+  const handleViewChange = (view: ViewMode) => {
+    setCurrentView(view);
+    setTeacherAccessError(null);
+    setTeacherPasswordInput('');
+  };
+
+  const handleTeacherPasswordSubmit = (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!teacherPassword || teacherPasswordInput === teacherPassword) {
+      setTeacherUnlocked(true);
+      setTeacherAccessError(null);
+      setTeacherPasswordInput('');
+      return;
+    }
+
+    setTeacherAccessError('비밀번호가 올바르지 않습니다.');
+  };
+
+  const handleUpdateTeacherPassword = async (password: string) => {
+    try {
+      const savedPassword = await updateTeacherPassword(password);
+      setTeacherPassword(savedPassword);
+      setTeacherUnlocked(false);
+      return { success: true, message: '교사 전용 페이지 비밀번호가 변경되었습니다.' };
+    } catch (error: any) {
+      console.error(error);
+      return {
+        success: false,
+        message: error?.message || '비밀번호 저장 중 오류가 발생했습니다.',
+      };
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50/50 flex flex-col font-sans select-none" id="app-root-container">
       {errorMsg && (
@@ -98,7 +143,7 @@ export default function App() {
         </div>
       )}
 
-      <Header currentView={currentView} onViewChange={setCurrentView} />
+      <Header currentView={currentView} onViewChange={handleViewChange} />
 
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8" id="main-content-area">
         {isLoading && db.classes.length === 0 ? (
@@ -116,11 +161,47 @@ export default function App() {
           <div id="active-view-rendering">
             {currentView === 'student' && <StudentView db={db} />}
             {currentView === 'teacher' && (
-              <TeacherView
-                db={db}
-                onAddSchedule={handleAddSchedule}
-                onDeleteSchedule={handleDeleteSchedule}
-              />
+              teacherPassword && !teacherUnlocked ? (
+                <div className="max-w-md mx-auto bg-white border border-slate-200 rounded-xl shadow-sm p-6 space-y-5">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100">
+                      <LockKeyhole className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-extrabold text-slate-900">교사 전용 페이지</h2>
+                      <p className="text-xs text-slate-500 mt-0.5">관리자 시스템에서 설정한 비밀번호를 입력하세요.</p>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleTeacherPasswordSubmit} className="space-y-3">
+                    <input
+                      type="password"
+                      value={teacherPasswordInput}
+                      onChange={(event) => setTeacherPasswordInput(event.target.value)}
+                      className="w-full h-11 rounded-lg border border-slate-200 px-3 text-sm outline-hidden focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10"
+                      placeholder="비밀번호 입력"
+                      autoFocus
+                    />
+                    {teacherAccessError && (
+                      <div className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+                        {teacherAccessError}
+                      </div>
+                    )}
+                    <button
+                      type="submit"
+                      className="w-full h-11 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 transition-colors"
+                    >
+                      접속하기
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <TeacherView
+                  db={db}
+                  onAddSchedule={handleAddSchedule}
+                  onDeleteSchedule={handleDeleteSchedule}
+                />
+              )
             )}
             {currentView === 'admin' && (
               <AdminView
@@ -131,6 +212,8 @@ export default function App() {
                 onDeleteSubject={handleDeleteSubject}
                 onAddPeriod={handleAddPeriod}
                 onDeletePeriod={handleDeletePeriod}
+                teacherPassword={teacherPassword}
+                onUpdateTeacherPassword={handleUpdateTeacherPassword}
               />
             )}
           </div>

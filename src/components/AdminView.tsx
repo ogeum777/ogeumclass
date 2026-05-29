@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { Calendar, School, BookOpen, Clock, Plus, Trash2, ShieldAlert, AlertCircle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Calendar, School, BookOpen, Clock, Plus, Trash2, ShieldAlert, AlertCircle, LockKeyhole } from 'lucide-react';
 import { Database } from '../types';
 
 interface AdminViewProps {
@@ -15,6 +15,8 @@ interface AdminViewProps {
   onDeleteSubject: (subjectName: string) => Promise<{ success: boolean; message: string }>;
   onAddPeriod: (period: string) => Promise<{ success: boolean; message: string }>;
   onDeletePeriod: (period: string) => Promise<{ success: boolean; message: string }>;
+  teacherPassword: string;
+  onUpdateTeacherPassword: (password: string) => Promise<{ success: boolean; message: string }>;
 }
 
 export default function AdminView({
@@ -25,11 +27,14 @@ export default function AdminView({
   onDeleteSubject,
   onAddPeriod,
   onDeletePeriod,
+  teacherPassword,
+  onUpdateTeacherPassword,
 }: AdminViewProps) {
   // Local form inputs
   const [newClassInput, setNewClassInput] = useState('');
   const [newSubjectInput, setNewSubjectInput] = useState('');
   const [newPeriodInput, setNewPeriodInput] = useState('');
+  const [teacherPasswordInput, setTeacherPasswordInput] = useState(teacherPassword);
 
   // Local helper feedback states
   const [activeFeedback, setActiveFeedback] = useState<{ section: string; type: 'success' | 'error'; text: string } | null>(null);
@@ -39,6 +44,17 @@ export default function AdminView({
     setTimeout(() => {
       setActiveFeedback(null);
     }, 3500);
+  };
+
+  useEffect(() => {
+    setTeacherPasswordInput(teacherPassword);
+  }, [teacherPassword]);
+
+  const handleUpdateTeacherPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const result = await onUpdateTeacherPassword(teacherPasswordInput);
+    displayFeedback('teacher-password', result.success ? 'success' : 'error', result.message);
   };
 
   // Handlers for adding items
@@ -145,6 +161,44 @@ export default function AdminView({
           </div>
         </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-center">당일 시간표 등록 기준 데이터 구성</h2>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-xs" id="admin-module-teacher-password">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-2">
+            <h3 className="font-extrabold text-slate-900 flex items-center gap-1.5">
+              <LockKeyhole className="h-5 w-5 text-emerald-600" />
+              <span>교사 전용 페이지 비밀번호</span>
+            </h3>
+            <p className="text-xs text-slate-500">
+              교사 입력 페이지에 접속할 때 필요한 비밀번호입니다. 비워두면 비밀번호 없이 접속됩니다.
+            </p>
+          </div>
+
+          <form onSubmit={handleUpdateTeacherPassword} className="flex w-full gap-2 sm:max-w-md">
+            <input
+              type="text"
+              value={teacherPasswordInput}
+              onChange={(e) => setTeacherPasswordInput(e.target.value)}
+              placeholder="예) 1234"
+              className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-600"
+            />
+            <button
+              type="submit"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-4 py-2 text-sm font-semibold flex items-center gap-1 shrink-0 transition-colors"
+            >
+              저장
+            </button>
+          </form>
+        </div>
+
+        {activeFeedback?.section === 'teacher-password' && (
+          <div className={`mt-4 p-2.5 rounded-lg text-xs leading-none border ${
+            activeFeedback.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-100' : 'bg-rose-50 text-rose-800 border-rose-100'
+          }`}>
+            {activeFeedback.text}
+          </div>
+        )}
       </div>
 
       {/* Main Grid for 4 control modules */}
