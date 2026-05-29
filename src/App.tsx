@@ -29,6 +29,7 @@ const INITIAL_DB: Database = {
 
 const ADMIN_ID = import.meta.env.VITE_ADMIN_ID as string | undefined;
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD as string | undefined;
+const TEACHER_AUTH_STORAGE_KEY = 'today-classroom-teacher-auth';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewMode>('student');
@@ -65,6 +66,15 @@ export default function App() {
   useEffect(() => {
     fetchDb();
   }, []);
+
+  useEffect(() => {
+    if (!teacherPassword) {
+      setTeacherUnlocked(true);
+      return;
+    }
+
+    setTeacherUnlocked(localStorage.getItem(TEACHER_AUTH_STORAGE_KEY) === teacherPassword);
+  }, [teacherPassword]);
 
   const handleDataAction = async (
     action: () => Promise<Database>
@@ -111,6 +121,9 @@ export default function App() {
 
     if (!teacherPassword || teacherPasswordInput === teacherPassword) {
       setTeacherUnlocked(true);
+      if (teacherPassword) {
+        localStorage.setItem(TEACHER_AUTH_STORAGE_KEY, teacherPassword);
+      }
       setTeacherAccessError(null);
       setTeacherPasswordInput('');
       return;
@@ -124,6 +137,7 @@ export default function App() {
       const savedPassword = await updateTeacherPassword(password);
       setTeacherPassword(savedPassword);
       setTeacherUnlocked(false);
+      localStorage.removeItem(TEACHER_AUTH_STORAGE_KEY);
       return { success: true, message: '교사 전용 페이지 비밀번호가 변경되었습니다.' };
     } catch (error: any) {
       console.error(error);
